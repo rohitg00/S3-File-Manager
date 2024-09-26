@@ -72,3 +72,13 @@ def get_file_url(filename):
     except ClientError as e:
         logger.error(f"Error generating preview URL: {str(e)}")
         raise Exception(f"Error generating preview URL: {str(e)}")
+
+def delete_file(filename):
+    """Delete a file from the S3 bucket"""
+    try:
+        s3_client = get_s3_client()
+        s3_client.delete_object(Bucket=S3_BUCKET, Key=filename)
+        logger.info(f"File {filename} deleted successfully.")
+    except ClientError as e:
+        logger.error(f"Error deleting file: {str(e)}")
+        raise Exception(f"Error deleting file: {str(e)}")

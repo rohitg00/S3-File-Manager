@@ -55,13 +55,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const xhr = new XMLHttpRequest();
         xhr.open('POST', '/upload', true);
 
-        // Create progress bar
-        const progressBar = createProgressBar(file.name, 'upload');
+        // Create progress bar and cancel button
+        const progressBarContainer = createProgressBar(file.name, 'upload');
+        const cancelButton = createCancelButton(xhr);
+        progressBarContainer.appendChild(cancelButton);
         
         xhr.upload.onprogress = (event) => {
             if (event.lengthComputable) {
                 const percentComplete = (event.loaded / event.total) * 100;
-                updateProgressBar(progressBar, percentComplete);
+                updateProgressBar(progressBarContainer, percentComplete);
             }
         };
 
@@ -73,12 +75,12 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 showMessage('Error uploading file', 'error');
             }
-            progressBar.remove();
+            progressBarContainer.remove();
         };
 
         xhr.onerror = () => {
             showMessage('Error uploading file', 'error');
-            progressBar.remove();
+            progressBarContainer.remove();
         };
 
         xhr.send(formData);
@@ -113,8 +115,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${file.preview_url ? `<button onclick="previewFile('${file.name}', '${file.preview_url}', '${file.mime_type}')" class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded mr-2">
                         Preview
                     </button>` : ''}
-                    <button onclick="downloadFile('${file.name}')" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded">
+                    <button onclick="downloadFile('${file.name}')" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mr-2">
                         Download
+                    </button>
+                    <button onclick="deleteFile('${file.name}')" class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded">
+                        Delete
                     </button>
                 </div>
             `;
@@ -123,9 +128,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.downloadFile = function(filename) {
-        const progressBar = createProgressBar(filename, 'download');
+        const progressBarContainer = createProgressBar(filename, 'download');
+        const abortController = new AbortController();
+        const cancelButton = createCancelButton(abortController);
+        progressBarContainer.appendChild(cancelButton);
         
-        fetch(`/download/${filename}`)
+        fetch(`/download/${filename}`, { signal: abortController.signal })
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -141,12 +149,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                 reader.read().then(({ done, value }) => {
                                     if (done) {
                                         controller.close();
-                                        progressBar.remove();
+                                        progressBarContainer.remove();
                                         return;
                                     }
                                     receivedLength += value.length;
                                     const percentComplete = (receivedLength / contentLength) * 100;
-                                    updateProgressBar(progressBar, percentComplete);
+                                    updateProgressBar(progressBarContainer, percentComplete);
                                     controller.enqueue(value);
                                     push();
                                 });
@@ -168,10 +176,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.URL.revokeObjectURL(url);
             })
             .catch(error => {
-                showMessage('Error downloading file', 'error');
-                console.error('Download error:', error);
-                progressBar.remove();
+                if (error.name === 'AbortError') {
+                    showMessage('Download cancelled', 'info');
+                } else {
+                    showMessage('Error downloading file', 'error');
+                    console.error('Download error:', error);
+                }
+                progressBarContainer.remove();
             });
+    }
+
+    window.deleteFile = function(filename) {
+        if (confirm(`Are you sure you want to delete ${filename}?`)) {
+            fetch(`/delete/${filename}`, { method: 'DELETE' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showMessage(data.error, 'error');
+                    } else {
+                        showMessage('File deleted successfully', 'success');
+                        listFiles();
+                    }
+                })
+                .catch(error => {
+                    showMessage('Error deleting file', 'error');
+                    console.error('Delete error:', error);
+                });
+        }
     }
 
     window.previewFile = function(filename, previewUrl, mimeType) {
@@ -194,7 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showMessage(message, type) {
         messageDiv.textContent = message;
-        messageDiv.className = type === 'error' ? 'text-red-500' : 'text-green-500';
+        messageDiv.className = type === 'error' ? 'text-red-500' : type === 'info' ? 'text-blue-500' : 'text-green-500';
         setTimeout(() => {
             messageDiv.textContent = '';
             messageDiv.className = '';
@@ -225,6 +256,20 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateProgressBar(progressBarContainer, percentComplete) {
         const progressBar = progressBarContainer.querySelector('.bg-blue-600');
         progressBar.style.width = `${percentComplete}%`;
+    }
+
+    function createCancelButton(controller) {
+        const cancelButton = document.createElement('button');
+        cancelButton.textContent = 'Cancel';
+        cancelButton.className = 'bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded mt-2';
+        cancelButton.onclick = () => {
+            if (controller instanceof AbortController) {
+                controller.abort();
+            } else if (controller instanceof XMLHttpRequest) {
+                controller.abort();
+            }
+        };
+        return cancelButton;
     }
 
     listFiles();

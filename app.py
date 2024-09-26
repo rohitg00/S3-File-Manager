@@ -1,7 +1,7 @@
 import os
 from flask import Flask, render_template, request, jsonify, send_file, Response
 from werkzeug.utils import secure_filename
-from s3_utils import upload_file, download_file, list_files, get_file_url
+from s3_utils import upload_file, download_file, list_files, get_file_url, delete_file
 from config import S3_BUCKET
 import mimetypes
 import boto3
@@ -52,6 +52,14 @@ def download(filename):
         }
         return Response(generate(), headers=headers, direct_passthrough=True)
     except ClientError as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/delete/<filename>', methods=['DELETE'])
+def delete(filename):
+    try:
+        delete_file(filename)
+        return jsonify({'message': 'File deleted successfully'}), 200
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/list')

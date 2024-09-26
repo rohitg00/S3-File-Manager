@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const fileList = document.getElementById('file-list');
     const messageDiv = document.getElementById('message');
     const loadingSpinner = document.getElementById('loading-spinner');
+    const previewArea = document.getElementById('preview-area');
 
     // Drag and drop functionality
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -97,10 +98,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const li = document.createElement('li');
             li.className = 'flex justify-between items-center py-2';
             li.innerHTML = `
-                <span>${file}</span>
-                <button onclick="downloadFile('${file}')" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded">
-                    Download
-                </button>
+                <span>${file.name}</span>
+                <div>
+                    ${file.preview_url ? `<button onclick="previewFile('${file.name}', '${file.preview_url}', '${file.mime_type}')" class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded mr-2">
+                        Preview
+                    </button>` : ''}
+                    <button onclick="downloadFile('${file.name}')" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded">
+                        Download
+                    </button>
+                </div>
             `;
             fileList.appendChild(li);
         });
@@ -122,6 +128,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 hideLoading();
                 showMessage('Error downloading file', 'error');
             });
+    }
+
+    window.previewFile = function(filename, previewUrl, mimeType) {
+        previewArea.innerHTML = '';
+        if (mimeType.startsWith('image/')) {
+            previewArea.innerHTML = `<img src="${previewUrl}" alt="${filename}" class="max-w-full h-auto">`;
+        } else if (mimeType === 'application/pdf') {
+            previewArea.innerHTML = `<iframe src="${previewUrl}" width="100%" height="600px"></iframe>`;
+        } else {
+            previewArea.innerHTML = '<p>Preview not available for this file type.</p>';
+        }
     }
 
     function showMessage(message, type) {

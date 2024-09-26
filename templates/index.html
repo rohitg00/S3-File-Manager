@@ -24,9 +24,15 @@
 
         <div id="loading-spinner" class="spinner mx-auto hidden"></div>
 
-        <div class="bg-white p-8 rounded-lg shadow-md">
-            <h2 class="text-2xl font-bold mb-4">Files in S3 Bucket</h2>
-            <ul id="file-list" class="space-y-2"></ul>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="bg-white p-8 rounded-lg shadow-md">
+                <h2 class="text-2xl font-bold mb-4">Files in S3 Bucket</h2>
+                <ul id="file-list" class="space-y-2"></ul>
+            </div>
+            <div class="bg-white p-8 rounded-lg shadow-md">
+                <h2 class="text-2xl font-bold mb-4">File Preview</h2>
+                <div id="preview-area" class="mt-4"></div>
+            </div>
         </div>
     </div>
 

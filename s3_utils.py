@@ -58,3 +58,17 @@ def list_files():
     except ClientError as e:
         logger.error(f"Error listing files: {str(e)}")
         raise Exception(f"Error listing files: {str(e)}")
+
+def get_file_url(filename):
+    """Generate a pre-signed URL for file preview"""
+    try:
+        s3_client = get_s3_client()
+        response = s3_client.generate_presigned_url('get_object',
+                                                    Params={'Bucket': S3_BUCKET,
+                                                            'Key': filename},
+                                                    ExpiresIn=3600)
+        logger.info(f"Preview URL generated for file {filename}.")
+        return response
+    except ClientError as e:
+        logger.error(f"Error generating preview URL: {str(e)}")
+        raise Exception(f"Error generating preview URL: {str(e)}")

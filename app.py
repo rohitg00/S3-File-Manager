@@ -1,9 +1,11 @@
 import os
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, Response
 from werkzeug.utils import secure_filename
 from s3_utils import upload_file, download_file, list_files, get_file_url
 from config import S3_BUCKET
 import mimetypes
+import boto3
+from botocore.exceptions import ClientError
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100 MB max upload size
@@ -30,9 +32,26 @@ def upload():
 @app.route('/download/<filename>')
 def download(filename):
     try:
-        download_url = download_file(filename)
-        return jsonify({'download_url': download_url}), 200
-    except Exception as e:
+        s3 = boto3.client('s3')
+        file_obj = s3.get_object(Bucket=S3_BUCKET, Key=filename)
+        file_size = file_obj['ContentLength']
+
+        def generate():
+            offset = 0
+            while offset < file_size:
+                chunk = min(4 * 1024 * 1024, file_size - offset)
+                byte_range = f'bytes={offset}-{offset + chunk - 1}'
+                response = s3.get_object(Bucket=S3_BUCKET, Key=filename, Range=byte_range)
+                data = response['Body'].read()
+                offset += len(data)
+                yield data
+
+        headers = {
+            'Content-Disposition': f'attachment; filename="{filename}"',
+            'Content-Length': str(file_size),
+        }
+        return Response(generate(), headers=headers, direct_passthrough=True)
+    except ClientError as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/list')
@@ -50,10 +69,8 @@ def list_bucket_files():
                 'preview_url': preview_url,
                 'mime_type': mime_type
             })
-        print("File data:", file_data)  # Add this line for debugging
         return jsonify({'files': file_data}), 200
     except Exception as e:
-        print("Error in list_bucket_files:", str(e))  # Add this line for debugging
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

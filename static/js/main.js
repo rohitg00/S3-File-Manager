@@ -52,25 +52,36 @@ document.addEventListener('DOMContentLoaded', () => {
         const formData = new FormData();
         formData.append('file', file);
 
-        showLoading();
-        fetch('/upload', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            hideLoading();
-            if (data.error) {
-                showMessage(data.error, 'error');
-            } else {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/upload', true);
+
+        // Create progress bar
+        const progressBar = createProgressBar(file.name, 'upload');
+        
+        xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+                const percentComplete = (event.loaded / event.total) * 100;
+                updateProgressBar(progressBar, percentComplete);
+            }
+        };
+
+        xhr.onload = () => {
+            if (xhr.status === 200) {
+                const response = JSON.parse(xhr.responseText);
                 showMessage('File uploaded successfully', 'success');
                 listFiles();
+            } else {
+                showMessage('Error uploading file', 'error');
             }
-        })
-        .catch(error => {
-            hideLoading();
+            progressBar.remove();
+        };
+
+        xhr.onerror = () => {
             showMessage('Error uploading file', 'error');
-        });
+            progressBar.remove();
+        };
+
+        xhr.send(formData);
     }
 
     function listFiles() {
@@ -112,21 +123,54 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.downloadFile = function(filename) {
-        showLoading();
+        const progressBar = createProgressBar(filename, 'download');
+        
         fetch(`/download/${filename}`)
-            .then(response => response.json())
-            .then(data => {
-                hideLoading();
-                if (data.error) {
-                    showMessage(data.error, 'error');
-                } else {
-                    window.open(data.download_url, '_blank');
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
                 }
+                const reader = response.body.getReader();
+                const contentLength = +response.headers.get('Content-Length');
+                let receivedLength = 0;
+
+                return new Response(
+                    new ReadableStream({
+                        start(controller) {
+                            function push() {
+                                reader.read().then(({ done, value }) => {
+                                    if (done) {
+                                        controller.close();
+                                        progressBar.remove();
+                                        return;
+                                    }
+                                    receivedLength += value.length;
+                                    const percentComplete = (receivedLength / contentLength) * 100;
+                                    updateProgressBar(progressBar, percentComplete);
+                                    controller.enqueue(value);
+                                    push();
+                                });
+                            }
+                            push();
+                        }
+                    })
+                );
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
             })
             .catch(error => {
-                hideLoading();
                 showMessage('Error downloading file', 'error');
                 console.error('Download error:', error);
+                progressBar.remove();
             });
     }
 
@@ -163,6 +207,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function hideLoading() {
         loadingSpinner.classList.add('hidden');
+    }
+
+    function createProgressBar(filename, type) {
+        const progressBarContainer = document.createElement('div');
+        progressBarContainer.className = 'mt-4';
+        progressBarContainer.innerHTML = `
+            <p>${type === 'upload' ? 'Uploading' : 'Downloading'} ${filename}</p>
+            <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                <div class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+            </div>
+        `;
+        messageDiv.parentNode.insertBefore(progressBarContainer, messageDiv);
+        return progressBarContainer;
+    }
+
+    function updateProgressBar(progressBarContainer, percentComplete) {
+        const progressBar = progressBarContainer.querySelector('.bg-blue-600');
+        progressBar.style.width = `${percentComplete}%`;
     }
 
     listFiles();

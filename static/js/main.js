@@ -1,11 +1,14 @@
 document.addEventListener('DOMContentLoaded', () => {
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
-    const uploadButton = document.getElementById('upload-button');
     const fileList = document.getElementById('file-list');
     const messageDiv = document.getElementById('message');
     const loadingSpinner = document.getElementById('loading-spinner');
     const previewArea = document.getElementById('preview-area');
+    const createFolderBtn = document.getElementById('create-folder-btn');
+    const currentPathDiv = document.getElementById('current-path');
+
+    let currentPath = '';
 
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, preventDefaults, false);
@@ -51,11 +54,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function uploadFile(file) {
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('folder', currentPath);
 
         const xhr = new XMLHttpRequest();
         xhr.open('POST', '/upload', true);
 
-        // Create progress bar and cancel button
         const progressBarContainer = createProgressBar(file.name, 'upload');
         const cancelButton = createCancelButton(() => {
             xhr.abort();
@@ -73,9 +76,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         xhr.onload = () => {
             if (xhr.status === 200) {
-                const response = JSON.parse(xhr.responseText);
                 showMessage('File uploaded successfully', 'success');
-                listFiles();
+                listFiles(currentPath);
             } else {
                 showMessage('Error uploading file', 'error');
             }
@@ -95,9 +97,9 @@ document.addEventListener('DOMContentLoaded', () => {
         xhr.send(formData);
     }
 
-    function listFiles() {
+    function listFiles(prefix = '') {
         showLoading();
-        fetch('/list')
+        fetch(`/list?prefix=${encodeURIComponent(prefix)}`)
             .then(response => response.json())
             .then(data => {
                 hideLoading();
@@ -105,6 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     showMessage(data.error, 'error');
                 } else {
                     updateFileList(data.files);
+                    updateCurrentPath(prefix);
                 }
             })
             .catch(error => {
@@ -115,23 +118,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateFileList(files) {
         fileList.innerHTML = '';
-        files.forEach(file => {
+        if (currentPath) {
             const li = document.createElement('li');
             li.className = 'flex justify-between items-center py-2';
             li.innerHTML = `
-                <span>${file.name}</span>
-                <div>
-                    ${file.preview_url ? `<button onclick="previewFile('${file.name}', '${file.preview_url}', '${file.mime_type}')" class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded mr-2">
-                        Preview
-                    </button>` : ''}
-                    <button onclick="downloadFile('${file.name}')" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mr-2">
-                        Download
-                    </button>
-                    <button onclick="deleteFile('${file.name}')" class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded">
-                        Delete
-                    </button>
-                </div>
+                <button onclick="navigateUp()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-1 px-2 rounded">
+                    ../ (Up)
+                </button>
             `;
+            fileList.appendChild(li);
+        }
+        files.forEach(file => {
+            const li = document.createElement('li');
+            li.className = 'flex justify-between items-center py-2';
+            if (file.type === 'folder') {
+                li.innerHTML = `
+                    <span>${file.name}</span>
+                    <div>
+                        <button onclick="navigateToFolder('${file.name}')" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mr-2">
+                            Open
+                        </button>
+                        <button onclick="deleteFolder('${file.name}')" class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded">
+                            Delete
+                        </button>
+                    </div>
+                `;
+            } else {
+                li.innerHTML = `
+                    <span>${file.name}</span>
+                    <div>
+                        ${file.preview_url ? `<button onclick="previewFile('${file.name}', '${file.preview_url}', '${file.mime_type}')" class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded mr-2">
+                            Preview
+                        </button>` : ''}
+                        <button onclick="downloadFile('${file.name}')" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mr-2">
+                            Download
+                        </button>
+                        <button onclick="deleteFile('${file.name}')" class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded">
+                            Delete
+                        </button>
+                    </div>
+                `;
+            }
             fileList.appendChild(li);
         });
     }
@@ -146,7 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         progressBarContainer.appendChild(cancelButton);
         
-        fetch(`/download/${filename}`, { signal: abortController.signal })
+        fetch(`/download/${encodeURIComponent(currentPath + filename)}`, { signal: abortController.signal })
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -201,14 +228,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.deleteFile = function(filename) {
         if (confirm(`Are you sure you want to delete ${filename}?`)) {
-            fetch(`/delete/${filename}`, { method: 'DELETE' })
+            fetch(`/delete/${encodeURIComponent(currentPath + filename)}`, { method: 'DELETE' })
                 .then(response => response.json())
                 .then(data => {
                     if (data.error) {
                         showMessage(data.error, 'error');
                     } else {
                         showMessage('File deleted successfully', 'success');
-                        listFiles();
+                        listFiles(currentPath);
                     }
                 })
                 .catch(error => {
@@ -277,6 +304,75 @@ document.addEventListener('DOMContentLoaded', () => {
         cancelButton.className = 'bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded mt-2';
         cancelButton.onclick = cancelCallback;
         return cancelButton;
+    }
+
+    createFolderBtn.addEventListener('click', () => {
+        const folderName = prompt('Enter folder name:');
+        if (folderName) {
+            createFolder(folderName);
+        }
+    });
+
+    function createFolder(folderName) {
+        const fullPath = currentPath + folderName;
+        fetch('/create_folder', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ folder_name: fullPath }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                showMessage(data.error, 'error');
+            } else {
+                showMessage('Folder created successfully', 'success');
+                listFiles(currentPath);
+            }
+        })
+        .catch(error => {
+            showMessage('Error creating folder', 'error');
+            console.error('Create folder error:', error);
+        });
+    }
+
+    window.deleteFolder = function(folderName) {
+        if (confirm(`Are you sure you want to delete the folder ${folderName} and all its contents?`)) {
+            const fullPath = currentPath + folderName;
+            fetch(`/delete_folder/${encodeURIComponent(fullPath)}`, { method: 'DELETE' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showMessage(data.error, 'error');
+                    } else {
+                        showMessage('Folder deleted successfully', 'success');
+                        listFiles(currentPath);
+                    }
+                })
+                .catch(error => {
+                    showMessage('Error deleting folder', 'error');
+                    console.error('Delete folder error:', error);
+                });
+        }
+    }
+
+    window.navigateToFolder = function(folderName) {
+        currentPath += folderName;
+        listFiles(currentPath);
+    }
+
+    window.navigateUp = function() {
+        const parts = currentPath.split('/');
+        parts.pop(); // Remove the last folder
+        parts.pop(); // Remove the empty string after the last '/'
+        currentPath = parts.join('/') + '/';
+        listFiles(currentPath);
+    }
+
+    function updateCurrentPath(path) {
+        currentPathDiv.textContent = `Current Path: ${path || 'Root'}`;
+        currentPath = path;
     }
 
     listFiles();

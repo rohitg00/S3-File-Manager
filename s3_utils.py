@@ -47,17 +47,27 @@ def download_file(filename):
         logger.error(f"Error generating download URL: {str(e)}")
         raise Exception(f"Error generating download URL: {str(e)}")
 
-def list_files():
-    """List all files in the S3 bucket"""
+def list_files_and_folders(prefix=''):
+    """List all files and folders in the S3 bucket"""
     try:
         s3_client = get_s3_client()
-        response = s3_client.list_objects_v2(Bucket=S3_BUCKET)
-        files = [obj['Key'] for obj in response.get('Contents', [])]
-        logger.info(f"Successfully listed {len(files)} files from the S3 bucket.")
-        return files
+        response = s3_client.list_objects_v2(Bucket=S3_BUCKET, Delimiter='/', Prefix=prefix)
+        
+        files = []
+        folders = []
+
+        for content in response.get('Contents', []):
+            if content['Key'] != prefix:
+                files.append(content['Key'])
+
+        for common_prefix in response.get('CommonPrefixes', []):
+            folders.append(common_prefix['Prefix'])
+
+        logger.info(f"Successfully listed files and folders from the S3 bucket with prefix: {prefix}")
+        return files, folders
     except ClientError as e:
-        logger.error(f"Error listing files: {str(e)}")
-        raise Exception(f"Error listing files: {str(e)}")
+        logger.error(f"Error listing files and folders: {str(e)}")
+        raise Exception(f"Error listing files and folders: {str(e)}")
 
 def get_file_url(filename):
     """Generate a pre-signed URL for file preview"""
@@ -82,3 +92,35 @@ def delete_file(filename):
     except ClientError as e:
         logger.error(f"Error deleting file: {str(e)}")
         raise Exception(f"Error deleting file: {str(e)}")
+
+def create_folder(folder_name):
+    """Create a new folder in the S3 bucket"""
+    try:
+        s3_client = get_s3_client()
+        folder_name = folder_name.rstrip('/') + '/'
+        s3_client.put_object(Bucket=S3_BUCKET, Key=folder_name)
+        logger.info(f"Folder {folder_name} created successfully.")
+    except ClientError as e:
+        logger.error(f"Error creating folder: {str(e)}")
+        raise Exception(f"Error creating folder: {str(e)}")
+
+def delete_folder(folder_name):
+    """Delete a folder and its contents from the S3 bucket"""
+    try:
+        s3_client = get_s3_client()
+        folder_name = folder_name.rstrip('/') + '/'
+        
+        # List all objects within the folder
+        response = s3_client.list_objects_v2(Bucket=S3_BUCKET, Prefix=folder_name)
+        
+        # Delete all objects within the folder
+        for obj in response.get('Contents', []):
+            s3_client.delete_object(Bucket=S3_BUCKET, Key=obj['Key'])
+        
+        # Delete the folder itself
+        s3_client.delete_object(Bucket=S3_BUCKET, Key=folder_name)
+        
+        logger.info(f"Folder {folder_name} and its contents deleted successfully.")
+    except ClientError as e:
+        logger.error(f"Error deleting folder: {str(e)}")
+        raise Exception(f"Error deleting folder: {str(e)}")

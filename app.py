@@ -1,7 +1,7 @@
 import os
 from flask import Flask, render_template, request, jsonify, send_file, Response, abort
 from werkzeug.utils import secure_filename
-from s3_utils import upload_file, download_file, list_files, get_file_url, delete_file
+from s3_utils import upload_file, download_file, list_files_and_folders, get_file_url, delete_file, create_folder, delete_folder
 from config import S3_BUCKET
 import mimetypes
 import boto3
@@ -23,13 +23,16 @@ def upload():
         return jsonify({'error': 'No selected file'}), 400
     if file:
         filename = secure_filename(file.filename)
+        folder = request.form.get('folder', '')
+        if folder:
+            filename = f"{folder.rstrip('/')}/{filename}"
         try:
             upload_file(file, filename)
             return jsonify({'message': 'File uploaded successfully'}), 200
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
-@app.route('/download/<filename>')
+@app.route('/download/<path:filename>')
 def download(filename):
     try:
         s3 = boto3.client('s3')
@@ -51,7 +54,7 @@ def download(filename):
                     abort(500)
 
         headers = {
-            'Content-Disposition': f'attachment; filename="{filename}"',
+            'Content-Disposition': f'attachment; filename="{os.path.basename(filename)}"',
             'Content-Length': str(file_size),
         }
         return Response(generate(), headers=headers, direct_passthrough=True)
@@ -59,7 +62,7 @@ def download(filename):
         app.logger.error(f"Error initiating file download: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/delete/<filename>', methods=['DELETE'])
+@app.route('/delete/<path:filename>', methods=['DELETE'])
 def delete(filename):
     try:
         delete_file(filename)
@@ -71,7 +74,8 @@ def delete(filename):
 @app.route('/list')
 def list_bucket_files():
     try:
-        files = list_files()
+        prefix = request.args.get('prefix', '')
+        files, folders = list_files_and_folders(prefix)
         file_data = []
         for file in files:
             mime_type, _ = mimetypes.guess_type(file)
@@ -81,11 +85,38 @@ def list_bucket_files():
             file_data.append({
                 'name': file,
                 'preview_url': preview_url,
-                'mime_type': mime_type
+                'mime_type': mime_type,
+                'type': 'file'
+            })
+        for folder in folders:
+            file_data.append({
+                'name': folder,
+                'type': 'folder'
             })
         return jsonify({'files': file_data}), 200
     except Exception as e:
-        app.logger.error(f"Error listing files: {str(e)}")
+        app.logger.error(f"Error listing files and folders: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/create_folder', methods=['POST'])
+def create_new_folder():
+    folder_name = request.json.get('folder_name')
+    if not folder_name:
+        return jsonify({'error': 'Folder name is required'}), 400
+    try:
+        create_folder(folder_name)
+        return jsonify({'message': 'Folder created successfully'}), 200
+    except Exception as e:
+        app.logger.error(f"Error creating folder: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/delete_folder/<path:folder_name>', methods=['DELETE'])
+def remove_folder(folder_name):
+    try:
+        delete_folder(folder_name)
+        return jsonify({'message': 'Folder deleted successfully'}), 200
+    except Exception as e:
+        app.logger.error(f"Error deleting folder: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.errorhandler(500)

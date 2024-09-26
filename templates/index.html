@@ -26,9 +26,17 @@
 
         <div id="progress-bars" class="mb-4"></div>
 
+        <div class="mb-4">
+            <button id="create-folder-btn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                Create Folder
+            </button>
+        </div>
+
+        <div id="current-path" class="mb-4 text-lg font-semibold"></div>
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div class="bg-white p-8 rounded-lg shadow-md">
-                <h2 class="text-2xl font-bold mb-4">Files in S3 Bucket</h2>
+                <h2 class="text-2xl font-bold mb-4">Files and Folders</h2>
                 <ul id="file-list" class="space-y-2"></ul>
             </div>
             <div class="bg-white p-8 rounded-lg shadow-md">

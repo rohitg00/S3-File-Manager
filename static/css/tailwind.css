@@ -1,9 +1,22 @@
 @import 'https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css';
 
 /* Custom styles */
+:root {
+    --primary-color: #3b82f6;
+    --primary-hover-color: #2563eb;
+    --secondary-color: #10b981;
+    --secondary-hover-color: #059669;
+    --danger-color: #ef4444;
+    --danger-hover-color: #dc2626;
+    --background-color: #f3f4f6;
+    --card-background: #ffffff;
+    --text-color: #1f2937;
+}
+
 body {
-    background-color: #f0f4f8;
-    color: #333;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    font-family: 'Arial', sans-serif;
 }
 
 .container {
@@ -11,22 +24,23 @@ body {
     max-width: 1200px;
     margin-left: auto;
     margin-right: auto;
-    padding-left: 1rem;
-    padding-right: 1rem;
+    padding: 2rem;
 }
 
 .drag-drop-zone {
-    border: 2px dashed #3b82f6;
+    border: 2px dashed var(--primary-color);
     border-radius: 1rem;
     background-color: #e0f2fe;
     transition: all 0.3s ease;
     padding: 2rem;
     margin-bottom: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .drag-drop-zone:hover, .drag-drop-zone.highlight {
-    border-color: #2563eb;
+    border-color: var(--primary-hover-color);
     background-color: #bfdbfe;
+    transform: translateY(-2px);
 }
 
 .spinner {
@@ -34,7 +48,7 @@ body {
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    border-left-color: #3b82f6;
+    border-left-color: var(--primary-color);
     animation: spin 1s linear infinite;
 }
 
@@ -45,30 +59,35 @@ body {
 
 .btn {
     @apply font-bold py-2 px-4 rounded transition duration-300 ease-in-out;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .btn-primary {
-    @apply bg-blue-500 text-white;
+    background-color: var(--primary-color);
+    color: white;
 }
 
 .btn-primary:hover {
-    @apply bg-blue-600;
+    background-color: var(--primary-hover-color);
 }
 
 .btn-secondary {
-    @apply bg-gray-300 text-gray-800;
+    background-color: var(--secondary-color);
+    color: white;
 }
 
 .btn-secondary:hover {
-    @apply bg-gray-400;
+    background-color: var(--secondary-hover-color);
 }
 
 .btn-danger {
-    @apply bg-red-500 text-white;
+    background-color: var(--danger-color);
+    color: white;
 }
 
 .btn-danger:hover {
-    @apply bg-red-600;
+    background-color: var(--danger-hover-color);
 }
 
 .file-list-item {
@@ -89,11 +108,30 @@ body {
     height: auto;
 }
 
+.card {
+    background-color: var(--card-background);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.card-header {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 1rem;
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+}
+
 /* Responsive design */
 @media (max-width: 1024px) {
     .container {
-        padding-left: 2rem;
-        padding-right: 2rem;
+        padding: 1.5rem;
     }
 }
 
@@ -105,8 +143,7 @@ body {
 
 @media (max-width: 640px) {
     .container {
-        padding-left: 1rem;
-        padding-right: 1rem;
+        padding: 1rem;
     }
     
     .file-list-item {
@@ -120,4 +157,23 @@ body {
     .btn {
         @apply py-1 px-2 text-sm;
     }
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes slideIn {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-slide-in {
+    animation: slideIn 0.3s ease-in-out;
 }

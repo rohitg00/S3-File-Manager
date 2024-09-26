@@ -14,8 +14,8 @@
             <div id="drop-zone" class="drag-drop-zone text-center">
                 <p class="mb-4 text-lg">Drag & Drop files here or click to select</p>
                 <input type="file" id="file-input" class="hidden" multiple>
-                <button onclick="document.getElementById('file-input').click();" class="btn btn-primary">
-                    Select Files
+                <button onclick="document.getElementById('file-input').click();" class="btn btn-primary btn-select-files">
+                    <i class="fas fa-upload"></i> Select Files
                 </button>
             </div>
         </div>
@@ -28,8 +28,8 @@
 
         <div class="flex flex-wrap justify-between items-center mb-4">
             <div id="current-path" class="text-lg font-semibold mb-2 md:mb-0"></div>
-            <button id="create-folder-btn" class="btn btn-secondary">
-                Create Folder
+            <button id="create-folder-btn" class="btn btn-secondary btn-create-folder">
+                <i class="fas fa-folder-plus"></i> Create Folder
             </button>
         </div>
 

@@ -1,4 +1,5 @@
 import os
+import logging
 from flask import Flask, render_template, request, jsonify, send_file, Response, abort
 from werkzeug.utils import secure_filename
 from s3_utils import upload_file, download_file, list_files_and_folders, get_file_url, delete_file, create_folder, delete_folder
@@ -9,6 +10,10 @@ from botocore.exceptions import ClientError
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024  # 200 MB max upload size
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 CHUNK_SIZE = 5 * 1024 * 1024  # 5 MB chunks
 
@@ -32,21 +37,25 @@ def upload():
             upload_file(file, filename)
             return jsonify({'message': 'File uploaded successfully'}), 200
         except Exception as e:
+            logger.error(f"Error uploading file: {str(e)}")
             return jsonify({'error': str(e)}), 500
 
 @app.route('/upload_chunk', methods=['POST'])
 def upload_chunk():
-    chunk = request.files['chunk']
-    filename = request.form['filename']
-    chunk_number = int(request.form['chunk_number'])
-    total_chunks = int(request.form['total_chunks'])
-
     try:
+        chunk = request.files['chunk']
+        filename = request.form['filename']
+        chunk_number = int(request.form['chunk_number'])
+        total_chunks = int(request.form['total_chunks'])
+
+        logger.info(f"Uploading chunk {chunk_number + 1} of {total_chunks} for file {filename}")
+
         s3 = boto3.client('s3')
         if chunk_number == 0:
             # Initialize multipart upload
             multipart_upload = s3.create_multipart_upload(Bucket=S3_BUCKET, Key=filename)
             upload_id = multipart_upload['UploadId']
+            logger.info(f"Initialized multipart upload for {filename} with UploadId: {upload_id}")
         else:
             upload_id = request.form['upload_id']
 
@@ -58,6 +67,7 @@ def upload_chunk():
             UploadId=upload_id,
             Body=chunk
         )
+        logger.info(f"Uploaded part {chunk_number + 1} for {filename}")
 
         if chunk_number == total_chunks - 1:
             # Complete the multipart upload
@@ -80,11 +90,13 @@ def upload_chunk():
                 UploadId=upload_id,
                 MultipartUpload={'Parts': parts}
             )
+            logger.info(f"Completed multipart upload for {filename}")
             return jsonify({'message': 'File uploaded successfully'}), 200
         else:
             return jsonify({'upload_id': upload_id}), 200
 
     except Exception as e:
+        logger.error(f"Error in upload_chunk: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/download/<path:filename>')
@@ -105,7 +117,7 @@ def download(filename):
                     offset += len(data)
                     yield data
                 except ClientError as e:
-                    app.logger.error(f"Error downloading file chunk: {str(e)}")
+                    logger.error(f"Error downloading file chunk: {str(e)}")
                     abort(500)
 
         headers = {
@@ -114,7 +126,7 @@ def download(filename):
         }
         return Response(generate(), headers=headers, direct_passthrough=True)
     except ClientError as e:
-        app.logger.error(f"Error initiating file download: {str(e)}")
+        logger.error(f"Error initiating file download: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/delete/<path:filename>', methods=['DELETE'])
@@ -123,7 +135,7 @@ def delete(filename):
         delete_file(filename)
         return jsonify({'message': 'File deleted successfully'}), 200
     except Exception as e:
-        app.logger.error(f"Error deleting file: {str(e)}")
+        logger.error(f"Error deleting file: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/list')
@@ -150,7 +162,7 @@ def list_bucket_files():
             })
         return jsonify({'files': file_data}), 200
     except Exception as e:
-        app.logger.error(f"Error listing files and folders: {str(e)}")
+        logger.error(f"Error listing files and folders: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/create_folder', methods=['POST'])
@@ -162,7 +174,7 @@ def create_new_folder():
         create_folder(folder_name)
         return jsonify({'message': 'Folder created successfully'}), 200
     except Exception as e:
-        app.logger.error(f"Error creating folder: {str(e)}")
+        logger.error(f"Error creating folder: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/delete_folder/<path:folder_name>', methods=['DELETE'])
@@ -171,12 +183,12 @@ def remove_folder(folder_name):
         delete_folder(folder_name)
         return jsonify({'message': 'Folder deleted successfully'}), 200
     except Exception as e:
-        app.logger.error(f"Error deleting folder: {str(e)}")
+        logger.error(f"Error deleting folder: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.errorhandler(500)
 def internal_server_error(error):
-    app.logger.error(f"Internal Server Error: {str(error)}")
+    logger.error(f"Internal Server Error: {str(error)}")
     return jsonify({'error': 'Internal Server Error'}), 500
 
 if __name__ == '__main__':

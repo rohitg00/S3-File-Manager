@@ -8,7 +8,9 @@ import boto3
 from botocore.exceptions import ClientError
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100 MB max upload size
+app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024  # 200 MB max upload size
+
+CHUNK_SIZE = 5 * 1024 * 1024  # 5 MB chunks
 
 @app.route('/')
 def index():
@@ -32,6 +34,59 @@ def upload():
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
+@app.route('/upload_chunk', methods=['POST'])
+def upload_chunk():
+    chunk = request.files['chunk']
+    filename = request.form['filename']
+    chunk_number = int(request.form['chunk_number'])
+    total_chunks = int(request.form['total_chunks'])
+
+    try:
+        s3 = boto3.client('s3')
+        if chunk_number == 0:
+            # Initialize multipart upload
+            multipart_upload = s3.create_multipart_upload(Bucket=S3_BUCKET, Key=filename)
+            upload_id = multipart_upload['UploadId']
+        else:
+            upload_id = request.form['upload_id']
+
+        # Upload the chunk
+        part = s3.upload_part(
+            Bucket=S3_BUCKET,
+            Key=filename,
+            PartNumber=chunk_number + 1,
+            UploadId=upload_id,
+            Body=chunk
+        )
+
+        if chunk_number == total_chunks - 1:
+            # Complete the multipart upload
+            parts = []
+            for i in range(total_chunks):
+                parts.append({
+                    'ETag': s3.upload_part(
+                        Bucket=S3_BUCKET,
+                        Key=filename,
+                        PartNumber=i + 1,
+                        UploadId=upload_id,
+                        Body=''
+                    )['ETag'],
+                    'PartNumber': i + 1
+                })
+
+            s3.complete_multipart_upload(
+                Bucket=S3_BUCKET,
+                Key=filename,
+                UploadId=upload_id,
+                MultipartUpload={'Parts': parts}
+            )
+            return jsonify({'message': 'File uploaded successfully'}), 200
+        else:
+            return jsonify({'upload_id': upload_id}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/download/<path:filename>')
 def download(filename):
     try:
@@ -42,7 +97,7 @@ def download(filename):
         def generate():
             offset = 0
             while offset < file_size:
-                chunk = min(4 * 1024 * 1024, file_size - offset)
+                chunk = min(CHUNK_SIZE, file_size - offset)
                 byte_range = f'bytes={offset}-{offset + chunk - 1}'
                 try:
                     response = s3.get_object(Bucket=S3_BUCKET, Key=filename, Range=byte_range)

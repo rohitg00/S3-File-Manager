@@ -51,50 +51,58 @@ document.addEventListener('DOMContentLoaded', () => {
         ([...files]).forEach(uploadFile);
     }
 
-    function uploadFile(file) {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('folder', currentPath);
-
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', '/upload', true);
+    async function uploadFile(file) {
+        const chunkSize = 5 * 1024 * 1024; // 5MB chunks
+        const chunks = Math.ceil(file.size / chunkSize);
+        const filename = currentPath + file.name;
+        let uploadId;
 
         const progressBarContainer = createProgressBar(file.name, 'upload');
         const cancelButton = createCancelButton(() => {
-            xhr.abort();
+            // Implement cancel logic here
             progressBarContainer.remove();
             showMessage('Upload cancelled', 'info');
         });
         progressBarContainer.appendChild(cancelButton);
-        
-        xhr.upload.onprogress = (event) => {
-            if (event.lengthComputable) {
-                const percentComplete = (event.loaded / event.total) * 100;
+
+        for (let chunk = 0; chunk < chunks; chunk++) {
+            const formData = new FormData();
+            formData.append('chunk', file.slice(chunk * chunkSize, (chunk + 1) * chunkSize));
+            formData.append('filename', filename);
+            formData.append('chunk_number', chunk);
+            formData.append('total_chunks', chunks);
+            if (uploadId) {
+                formData.append('upload_id', uploadId);
+            }
+
+            try {
+                const response = await fetch('/upload_chunk', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                if (result.upload_id) {
+                    uploadId = result.upload_id;
+                }
+
+                const percentComplete = ((chunk + 1) / chunks) * 100;
                 updateProgressBar(progressBarContainer, percentComplete);
+
+            } catch (error) {
+                showMessage(`Error uploading file: ${error.message}`, 'error');
+                progressBarContainer.remove();
+                return;
             }
-        };
+        }
 
-        xhr.onload = () => {
-            if (xhr.status === 200) {
-                showMessage('File uploaded successfully', 'success');
-                listFiles(currentPath);
-            } else {
-                showMessage('Error uploading file', 'error');
-            }
-            progressBarContainer.remove();
-        };
-
-        xhr.onerror = () => {
-            showMessage('Error uploading file', 'error');
-            progressBarContainer.remove();
-        };
-
-        xhr.onabort = () => {
-            showMessage('Upload cancelled', 'info');
-            progressBarContainer.remove();
-        };
-
-        xhr.send(formData);
+        progressBarContainer.remove();
+        showMessage('File uploaded successfully', 'success');
+        listFiles(currentPath);
     }
 
     function listFiles(prefix = '') {

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S3 File Manager</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold mb-8 text-center">S3 File Manager</h1>
+        
+        <div class="mb-8">
+            <div id="drop-zone" class="drag-drop-zone bg-white p-8 rounded-lg shadow-md text-center">
+                <p class="mb-4">Drag & Drop files here or click to select</p>
+                <input type="file" id="file-input" class="hidden" multiple>
+                <button onclick="document.getElementById('file-input').click();" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    Select Files
+                </button>
+            </div>
+        </div>
+
+        <div id="message" class="text-center mb-4"></div>
+
+        <div id="loading-spinner" class="spinner mx-auto hidden"></div>
+
+        <div class="bg-white p-8 rounded-lg shadow-md">
+            <h2 class="text-2xl font-bold mb-4">Files in S3 Bucket</h2>
+            <ul id="file-list" class="space-y-2"></ul>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

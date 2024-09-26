@@ -137,6 +137,12 @@ document.addEventListener('DOMContentLoaded', () => {
             previewArea.innerHTML = `<img src="${previewUrl}" alt="${filename}" class="max-w-full h-auto">`;
         } else if (mimeType === 'application/pdf') {
             previewArea.innerHTML = `<iframe src="${previewUrl}" width="100%" height="600px"></iframe>`;
+        } else if (mimeType.startsWith('video/')) {
+            previewArea.innerHTML = `
+                <video width="100%" height="auto" controls>
+                    <source src="${previewUrl}" type="${mimeType}">
+                    Your browser does not support the video tag.
+                </video>`;
         } else {
             previewArea.innerHTML = '<p>Preview not available for this file type.</p>';
         }

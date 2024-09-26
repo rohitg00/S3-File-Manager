@@ -43,7 +43,7 @@ def list_bucket_files():
         for file in files:
             mime_type, _ = mimetypes.guess_type(file)
             preview_url = None
-            if mime_type and (mime_type.startswith('image/') or mime_type == 'application/pdf'):
+            if mime_type and (mime_type.startswith('image/') or mime_type == 'application/pdf' or mime_type.startswith('video/')):
                 preview_url = get_file_url(file)
             file_data.append({
                 'name': file,

@@ -7,7 +7,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadingSpinner = document.getElementById('loading-spinner');
     const previewArea = document.getElementById('preview-area');
 
-    // Drag and drop functionality
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, preventDefaults, false);
     });
@@ -127,10 +126,12 @@ document.addEventListener('DOMContentLoaded', () => {
             .catch(error => {
                 hideLoading();
                 showMessage('Error downloading file', 'error');
+                console.error('Download error:', error);
             });
     }
 
     window.previewFile = function(filename, previewUrl, mimeType) {
+        console.log('Previewing file:', filename, 'URL:', previewUrl, 'MIME:', mimeType);
         previewArea.innerHTML = '';
         if (mimeType.startsWith('image/')) {
             previewArea.innerHTML = `<img src="${previewUrl}" alt="${filename}" class="max-w-full h-auto">`;
@@ -158,6 +159,5 @@ document.addEventListener('DOMContentLoaded', () => {
         loadingSpinner.classList.add('hidden');
     }
 
-    // Initial file list
     listFiles();
 });

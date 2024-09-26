@@ -50,8 +50,10 @@ def list_bucket_files():
                 'preview_url': preview_url,
                 'mime_type': mime_type
             })
+        print("File data:", file_data)  # Add this line for debugging
         return jsonify({'files': file_data}), 200
     except Exception as e:
+        print("Error in list_bucket_files:", str(e))  # Add this line for debugging
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

@@ -7,7 +7,12 @@ body {
 }
 
 .container {
+    width: 100%;
     max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
 }
 
 .drag-drop-zone {
@@ -15,6 +20,8 @@ body {
     border-radius: 1rem;
     background-color: #e0f2fe;
     transition: all 0.3s ease;
+    padding: 2rem;
+    margin-bottom: 2rem;
 }
 
 .drag-drop-zone:hover, .drag-drop-zone.highlight {
@@ -65,7 +72,7 @@ body {
 }
 
 .file-list-item {
-    @apply flex justify-between items-center py-3 px-4 border-b border-gray-200 hover:bg-gray-50 transition duration-150 ease-in-out;
+    @apply flex flex-wrap justify-between items-center py-3 px-4 border-b border-gray-200 hover:bg-gray-50 transition duration-150 ease-in-out;
 }
 
 .file-list-item:last-child {
@@ -73,13 +80,33 @@ body {
 }
 
 .preview-area {
-    @apply bg-white rounded-lg shadow-md p-4;
+    @apply bg-white rounded-lg shadow-md p-4 overflow-hidden;
+}
+
+.preview-area img,
+.preview-area video {
+    max-width: 100%;
+    height: auto;
 }
 
 /* Responsive design */
+@media (max-width: 1024px) {
+    .container {
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 640px) {
     .container {
-        @apply px-4;
+        padding-left: 1rem;
+        padding-right: 1rem;
     }
     
     .file-list-item {
@@ -87,6 +114,10 @@ body {
     }
     
     .file-list-item .actions {
-        @apply mt-2;
+        @apply mt-2 w-full flex justify-between;
+    }
+
+    .btn {
+        @apply py-1 px-2 text-sm;
     }
 }

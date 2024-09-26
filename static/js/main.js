@@ -57,7 +57,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Create progress bar and cancel button
         const progressBarContainer = createProgressBar(file.name, 'upload');
-        const cancelButton = createCancelButton(xhr);
+        const cancelButton = createCancelButton(() => {
+            xhr.abort();
+            progressBarContainer.remove();
+            showMessage('Upload cancelled', 'info');
+        });
         progressBarContainer.appendChild(cancelButton);
         
         xhr.upload.onprogress = (event) => {
@@ -80,6 +84,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         xhr.onerror = () => {
             showMessage('Error uploading file', 'error');
+            progressBarContainer.remove();
+        };
+
+        xhr.onabort = () => {
+            showMessage('Upload cancelled', 'info');
             progressBarContainer.remove();
         };
 
@@ -130,7 +139,11 @@ document.addEventListener('DOMContentLoaded', () => {
     window.downloadFile = function(filename) {
         const progressBarContainer = createProgressBar(filename, 'download');
         const abortController = new AbortController();
-        const cancelButton = createCancelButton(abortController);
+        const cancelButton = createCancelButton(() => {
+            abortController.abort();
+            progressBarContainer.remove();
+            showMessage('Download cancelled', 'info');
+        });
         progressBarContainer.appendChild(cancelButton);
         
         fetch(`/download/${filename}`, { signal: abortController.signal })
@@ -249,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
             </div>
         `;
-        messageDiv.parentNode.insertBefore(progressBarContainer, messageDiv);
+        document.getElementById('progress-bars').appendChild(progressBarContainer);
         return progressBarContainer;
     }
 
@@ -258,17 +271,11 @@ document.addEventListener('DOMContentLoaded', () => {
         progressBar.style.width = `${percentComplete}%`;
     }
 
-    function createCancelButton(controller) {
+    function createCancelButton(cancelCallback) {
         const cancelButton = document.createElement('button');
         cancelButton.textContent = 'Cancel';
         cancelButton.className = 'bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded mt-2';
-        cancelButton.onclick = () => {
-            if (controller instanceof AbortController) {
-                controller.abort();
-            } else if (controller instanceof XMLHttpRequest) {
-                controller.abort();
-            }
-        };
+        cancelButton.onclick = cancelCallback;
         return cancelButton;
     }
 

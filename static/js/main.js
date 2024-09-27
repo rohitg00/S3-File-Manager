@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const createFolderBtn = document.getElementById('create-folder-btn');
     const currentPathDiv = document.getElementById('current-path');
     const toggleFilesBtn = document.getElementById('toggle-files-btn');
+    const toggleMenu = document.getElementById('toggle-menu');
     const showHiddenFilesCheckbox = document.getElementById('show-hidden-files');
 
     let currentPath = '';
@@ -57,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function uploadFile(file) {
-        const chunkSize = 100 * 1024 * 1024; // 100MB chunks
+        const chunkSize = 100 * 1024 * 1024;
         const filename = currentPath + file.name;
 
         const progressBarContainer = createProgressBar(file.name, 'upload');
@@ -435,9 +436,19 @@ document.addEventListener('DOMContentLoaded', () => {
         currentPath = path;
     }
 
-    toggleFilesBtn.addEventListener('click', () => {
-        showFiles = !showFiles;
-        toggleFilesBtn.innerHTML = showFiles ? '<i class="fas fa-eye"></i> Hide Files' : '<i class="fas fa-eye-slash"></i> Show Files';
+    toggleFilesBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleMenu.classList.toggle('show');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!toggleFilesBtn.contains(e.target) && !toggleMenu.contains(e.target)) {
+            toggleMenu.classList.remove('show');
+        }
+    });
+
+    showHiddenFilesCheckbox.addEventListener('change', () => {
+        showHiddenFiles = showHiddenFilesCheckbox.checked;
         listFiles(currentPath);
     });
 
@@ -449,11 +460,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         listFiles(currentPath);
     }
-
-    showHiddenFilesCheckbox.addEventListener('change', () => {
-        showHiddenFiles = showHiddenFilesCheckbox.checked;
-        listFiles(currentPath);
-    });
 
     listFiles();
 });

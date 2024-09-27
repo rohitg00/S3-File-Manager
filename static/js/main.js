@@ -7,8 +7,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const previewArea = document.getElementById('preview-area');
     const createFolderBtn = document.getElementById('create-folder-btn');
     const currentPathDiv = document.getElementById('current-path');
+    const toggleFilesBtn = document.getElementById('toggle-files-btn');
+    const hideSmallFilesBtn = document.getElementById('hide-small-files-btn');
 
     let currentPath = '';
+    let showFiles = true;
+    let hideSmallFiles = false;
+    const smallFileThreshold = 1024 * 1024; // 1 MB
 
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, preventDefaults, false);
@@ -57,14 +62,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const progressBarContainer = createProgressBar(file.name, 'upload');
         const cancelButton = createCancelButton(() => {
-            // Implement cancel logic here
             progressBarContainer.remove();
             showMessage('Upload cancelled', 'info');
         });
         progressBarContainer.appendChild(cancelButton);
 
         if (file.size < chunkSize) {
-            // Single-part upload for small files
             const formData = new FormData();
             formData.append('chunk', file);
             formData.append('filename', filename);
@@ -92,7 +95,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 progressBarContainer.remove();
             }
         } else {
-            // Multipart upload for larger files
             const chunks = Math.ceil(file.size / chunkSize);
             let uploadId;
 
@@ -142,7 +144,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function listFiles(prefix = '') {
         showLoading();
-        fetch(`/list?prefix=${encodeURIComponent(prefix)}`)
+        const url = `/list?prefix=${encodeURIComponent(prefix)}${hideSmallFiles ? '&min_file_size=' + smallFileThreshold : ''}`;
+        fetch(url)
             .then(response => response.json())
             .then(data => {
                 hideLoading();
@@ -172,38 +175,48 @@ document.addEventListener('DOMContentLoaded', () => {
             fileList.appendChild(li);
         }
         files.forEach(file => {
-            const li = document.createElement('li');
-            li.className = 'flex justify-between items-center py-2';
-            if (file.type === 'folder') {
-                li.innerHTML = `
-                    <span>${file.name}</span>
-                    <div>
-                        <button onclick="navigateToFolder('${file.name}')" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mr-2">
-                            Open
-                        </button>
-                        <button onclick="deleteFolder('${file.name}')" class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded">
-                            Delete
-                        </button>
-                    </div>
-                `;
-            } else {
-                li.innerHTML = `
-                    <span>${file.name}</span>
-                    <div>
-                        ${file.preview_url ? `<button onclick="previewFile('${file.name}', '${file.preview_url}', '${file.mime_type}')" class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded mr-2">
-                            Preview
-                        </button>` : ''}
-                        <button onclick="downloadFile('${file.name}')" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mr-2">
-                            Download
-                        </button>
-                        <button onclick="deleteFile('${file.name}')" class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded">
-                            Delete
-                        </button>
-                    </div>
-                `;
+            if (file.type === 'folder' || (showFiles && (!hideSmallFiles || file.size >= smallFileThreshold))) {
+                const li = document.createElement('li');
+                li.className = 'flex justify-between items-center py-2';
+                if (file.type === 'folder') {
+                    li.innerHTML = `
+                        <span>${file.name}</span>
+                        <div>
+                            <button onclick="navigateToFolder('${file.name}')" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mr-2">
+                                Open
+                            </button>
+                            <button onclick="deleteFolder('${file.name}')" class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded">
+                                Delete
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    li.innerHTML = `
+                        <span>${file.name} (${formatFileSize(file.size)})</span>
+                        <div>
+                            ${file.preview_url ? `<button onclick="previewFile('${file.name}', '${file.preview_url}', '${file.mime_type}')" class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded mr-2">
+                                Preview
+                            </button>` : ''}
+                            <button onclick="downloadFile('${file.name}')" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mr-2">
+                                Download
+                            </button>
+                            <button onclick="deleteFile('${file.name}')" class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded">
+                                Delete
+                            </button>
+                        </div>
+                    `;
+                }
+                fileList.appendChild(li);
             }
-            fileList.appendChild(li);
         });
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
     window.downloadFile = function(filename) {
@@ -407,8 +420,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.navigateUp = function() {
         const parts = currentPath.split('/');
-        parts.pop(); // Remove the last folder
-        parts.pop(); // Remove the empty string after the last '/'
+        parts.pop();
+        parts.pop();
         currentPath = parts.join('/') + '/';
         listFiles(currentPath);
     }
@@ -417,6 +430,18 @@ document.addEventListener('DOMContentLoaded', () => {
         currentPathDiv.textContent = `Current Path: ${path || 'Root'}`;
         currentPath = path;
     }
+
+    toggleFilesBtn.addEventListener('click', () => {
+        showFiles = !showFiles;
+        toggleFilesBtn.innerHTML = showFiles ? '<i class="fas fa-eye"></i> Hide Files' : '<i class="fas fa-eye-slash"></i> Show Files';
+        listFiles(currentPath);
+    });
+
+    hideSmallFilesBtn.addEventListener('click', () => {
+        hideSmallFiles = !hideSmallFiles;
+        hideSmallFilesBtn.innerHTML = hideSmallFiles ? '<i class="fas fa-filter"></i> Show All Files' : '<i class="fas fa-filter"></i> Hide Small Files';
+        listFiles(currentPath);
+    });
 
     listFiles();
 });

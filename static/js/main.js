@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('filename', filename);
             formData.append('chunk_number', chunk);
             formData.append('total_chunks', chunks);
-            formData.append('file_size', file.size);  // Add total file size
+            formData.append('file_size', file.size);
             if (uploadId) {
                 formData.append('upload_id', uploadId);
             }
@@ -83,7 +83,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
                 }
 
                 const result = await response.json();
@@ -96,6 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             } catch (error) {
                 showMessage(`Error uploading file: ${error.message}`, 'error');
+                console.error('Upload error:', error);
                 progressBarContainer.remove();
                 return;
             }

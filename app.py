@@ -45,55 +45,64 @@ def upload_chunk():
     try:
         chunk = request.files['chunk']
         filename = request.form['filename']
+        file_size = int(request.form['file_size'])
         chunk_number = int(request.form['chunk_number'])
         total_chunks = int(request.form['total_chunks'])
 
         logger.info(f"Uploading chunk {chunk_number + 1} of {total_chunks} for file {filename}")
 
         s3 = boto3.client('s3')
-        if chunk_number == 0:
-            # Initialize multipart upload
-            multipart_upload = s3.create_multipart_upload(Bucket=S3_BUCKET, Key=filename)
-            upload_id = multipart_upload['UploadId']
-            logger.info(f"Initialized multipart upload for {filename} with UploadId: {upload_id}")
-        else:
-            upload_id = request.form['upload_id']
 
-        # Upload the chunk
-        part = s3.upload_part(
-            Bucket=S3_BUCKET,
-            Key=filename,
-            PartNumber=chunk_number + 1,
-            UploadId=upload_id,
-            Body=chunk
-        )
-        logger.info(f"Uploaded part {chunk_number + 1} for {filename}")
-
-        if chunk_number == total_chunks - 1:
-            # Complete the multipart upload
-            parts = []
-            for i in range(total_chunks):
-                parts.append({
-                    'ETag': s3.upload_part(
-                        Bucket=S3_BUCKET,
-                        Key=filename,
-                        PartNumber=i + 1,
-                        UploadId=upload_id,
-                        Body=''
-                    )['ETag'],
-                    'PartNumber': i + 1
-                })
-
-            s3.complete_multipart_upload(
-                Bucket=S3_BUCKET,
-                Key=filename,
-                UploadId=upload_id,
-                MultipartUpload={'Parts': parts}
-            )
-            logger.info(f"Completed multipart upload for {filename}")
+        if file_size < 5 * 1024 * 1024:  # If file is smaller than 5MB
+            # Perform single-part upload
+            s3.upload_fileobj(chunk, S3_BUCKET, filename)
+            logger.info(f"Single-part upload completed for file {filename}")
             return jsonify({'message': 'File uploaded successfully'}), 200
         else:
-            return jsonify({'upload_id': upload_id}), 200
+            # Multipart upload for larger files
+            if chunk_number == 0:
+                # Initialize multipart upload
+                multipart_upload = s3.create_multipart_upload(Bucket=S3_BUCKET, Key=filename)
+                upload_id = multipart_upload['UploadId']
+                logger.info(f"Initialized multipart upload for {filename} with UploadId: {upload_id}")
+            else:
+                upload_id = request.form['upload_id']
+
+            # Upload the chunk
+            part = s3.upload_part(
+                Bucket=S3_BUCKET,
+                Key=filename,
+                PartNumber=chunk_number + 1,
+                UploadId=upload_id,
+                Body=chunk
+            )
+            logger.info(f"Uploaded part {chunk_number + 1} for {filename}")
+
+            if chunk_number == total_chunks - 1:
+                # Complete the multipart upload
+                parts = []
+                for i in range(total_chunks):
+                    parts.append({
+                        'ETag': s3.upload_part(
+                            Bucket=S3_BUCKET,
+                            Key=filename,
+                            PartNumber=i + 1,
+                            UploadId=upload_id,
+                            Body=''
+                        )['ETag'],
+                        'PartNumber': i + 1
+                    })
+
+                s3.complete_multipart_upload(
+                    Bucket=S3_BUCKET,
+                    Key=filename,
+                    UploadId=upload_id,
+                    MultipartUpload={'Parts': parts}
+                )
+                logger.info(f"Completed multipart upload for {filename}")
+                return jsonify({'message': 'File uploaded successfully'}), 200
+            else:
+                return jsonify({'upload_id': upload_id}), 200
 
     except Exception as e:
         logger.error(f"Error in upload_chunk: {str(e)}", exc_info=True)

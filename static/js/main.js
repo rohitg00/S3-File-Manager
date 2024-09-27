@@ -71,6 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('filename', filename);
             formData.append('chunk_number', chunk);
             formData.append('total_chunks', chunks);
+            formData.append('file_size', file.size);  // Add total file size
             if (uploadId) {
                 formData.append('upload_id', uploadId);
             }

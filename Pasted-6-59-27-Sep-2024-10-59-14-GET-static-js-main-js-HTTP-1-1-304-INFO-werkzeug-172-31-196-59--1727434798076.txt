@@ -1,0 +1,55 @@
+6.59 - - [27/Sep/2024 10:59:14] "GET /static/js/main.js HTTP/1.1" 304 -
+INFO:werkzeug:172.31.196.59 - - [27/Sep/2024 10:59:14] "GET /static/css/tailwind.css HTTP/1.1" 304 -
+ERROR:app:Error in upload_chunk: 400 Bad Request: The browser (or proxy) sent a request that this server could not understand.
+Traceback (most recent call last):
+  File "/home/runner/S3FileShareGUI/app.py", line 46, in upload_chunk
+    chunk = request.files['chunk']
+            ^^^^^^^^^^^^^
+  File "/home/runner/S3FileShareGUI/.pythonlibs/lib/python3.11/site-packages/werkzeug/utils.py", line 107, in __get__
+    value = self.fget(obj)  # type: ignore
+            ^^^^^^^^^^^^^^
+  File "/home/runner/S3FileShareGUI/.pythonlibs/lib/python3.11/site-packages/werkzeug/wrappers/request.py", line 494, in files
+    self._load_form_data()
+  File "/home/runner/S3FileShareGUI/.pythonlibs/lib/python3.11/site-packages/flask/wrappers.py", line 115, in _load_form_data
+    super()._load_form_data()
+  File "/home/runner/S3FileShareGUI/.pythonlibs/lib/python3.11/site-packages/werkzeug/wrappers/request.py", line 268, in _load_form_data
+    data = parser.parse(
+           ^^^^^^^^^^^^^
+  File "/home/runner/S3FileShareGUI/.pythonlibs/lib/python3.11/site-packages/werkzeug/formparser.py", line 242, in parse
+    return parse_func(stream, mimetype, content_length, options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/S3FileShareGUI/.pythonlibs/lib/python3.11/site-packages/werkzeug/formparser.py", line 267, in _parse_multipart
+    form, files = parser.parse(stream, boundary, content_length)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/S3FileShareGUI/.pythonlibs/lib/python3.11/site-packages/werkzeug/formparser.py", line 367, in parse
+    for data in _chunk_iter(stream.read, self.buffer_size):
+  File "/home/runner/S3FileShareGUI/.pythonlibs/lib/python3.11/site-packages/werkzeug/formparser.py", line 412, in _chunk_iter
+    data = read(size)
+           ^^^^^^^^^^
+  File "/home/runner/S3FileShareGUI/.pythonlibs/lib/python3.11/site-packages/werkzeug/wsgi.py", line 562, in readinto
+    self.on_disconnect()
+  File "/home/runner/S3FileShareGUI/.pythonlibs/lib/python3.11/site-packages/werkzeug/wsgi.py", line 499, in on_disconnect
+    raise ClientDisconnected()
+werkzeug.exceptions.ClientDisconnected: 400 Bad Request: The browser (or proxy) sent a request that this server could not understand.
+INFO:werkzeug:172.31.196.59 - - [27/Sep/2024 10:59:14] "POST /upload_chunk HTTP/1.1" 500 -
+INFO:s3_utils:Successfully listed files and folders from the S3 bucket with prefix: 
+INFO:s3_utils:Preview URL generated for file vcluster-demo-final.mp4.
+INFO:s3_utils:Preview URL generated for file vcluster-demo.mp4.
+INFO:werkzeug:172.31.196.59 - - [27/Sep/2024 10:59:15] "GET /list?prefix= HTTP/1.1" 200 -
+INFO:app:Uploading chunk 1 of 2 for file 20221222_142814.jpg
+INFO:app:Initialized multipart upload for 20221222_142814.jpg with UploadId: aZPJl0d021WGRaJ.kMmdxl9NL71PuLXCHfD_1p2pY.Sbzr3q4xCWX3blmSg1vuMgGUjFpe85DUfrd.nibZ2H6jl1pnnsbHgYXAmLRlBM0QXIW1ueaEWi02S3NFbrDvH7
+INFO:app:Uploaded part 1 for 20221222_142814.jpg
+INFO:werkzeug:172.31.196.59 - - [27/Sep/2024 10:59:34] "POST /upload_chunk HTTP/1.1" 200 -
+INFO:app:Uploading chunk 2 of 2 for file 20221222_142814.jpg
+INFO:app:Uploaded part 2 for 20221222_142814.jpg
+ERROR:app:Error in upload_chunk: An error occurred (EntityTooSmall) when calling the CompleteMultipartUpload operation: Your proposed upload is smaller than the minimum allowed size
+Traceback (most recent call last):
+  File "/home/runner/S3FileShareGUI/app.py", line 87, in upload_chunk
+    s3.complete_multipart_upload(
+  File "/home/runner/S3FileShareGUI/.pythonlibs/lib/python3.11/site-packages/botocore/client.py", line 569, in _api_call
+    return self._make_api_call(operation_name, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/S3FileShareGUI/.pythonlibs/lib/python3.11/site-packages/botocore/client.py", line 1023, in _make_api_call
+    raise error_class(parsed_response, operation_name)
+botocore.exceptions.ClientError: An error occurred (EntityTooSmall) when calling the CompleteMultipartUpload operation: Your proposed upload is smaller than the minimum allowed size
+INFO:werkzeug:172.31.196.59 - - [27/Sep/2024 10:59:40] "POST /upload_chunk HTTP/1.1" 500 -

@@ -9,13 +9,19 @@ import boto3
 from botocore.exceptions import ClientError
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024  # 200 MB max upload size
+app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024 * 1024  # 1 TB
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-CHUNK_SIZE = 5 * 1024 * 1024  # 5 MB chunks
+CHUNK_SIZE = 100 * 1024 * 1024  # 100 MB chunks
+
+# Update MIME type detection
+mimetypes.init()
+mimetypes.add_type('image/webp', '.webp')
+mimetypes.add_type('image/heic', '.heic')
+mimetypes.add_type('image/heif', '.heif')
 
 @app.route('/')
 def index():
@@ -52,23 +58,20 @@ def upload_chunk():
         logger.info(f"Uploading chunk {chunk_number + 1} of {total_chunks} for file {filename}")
 
         s3 = boto3.client('s3')
-
-        if file_size < 5 * 1024 * 1024:  # If file is smaller than 5MB
-            # Perform single-part upload
+        if file_size < CHUNK_SIZE:
+            # Single-part upload for small files
             s3.upload_fileobj(chunk, S3_BUCKET, filename)
             logger.info(f"Single-part upload completed for file {filename}")
             return jsonify({'message': 'File uploaded successfully'}), 200
         else:
             # Multipart upload for larger files
             if chunk_number == 0:
-                # Initialize multipart upload
                 multipart_upload = s3.create_multipart_upload(Bucket=S3_BUCKET, Key=filename)
                 upload_id = multipart_upload['UploadId']
                 logger.info(f"Initialized multipart upload for {filename} with UploadId: {upload_id}")
             else:
                 upload_id = request.form['upload_id']
 
-            # Upload the chunk
             part = s3.upload_part(
                 Bucket=S3_BUCKET,
                 Key=filename,
@@ -76,10 +79,8 @@ def upload_chunk():
                 UploadId=upload_id,
                 Body=chunk
             )
-            logger.info(f"Uploaded part {chunk_number + 1} for {filename}")
 
             if chunk_number == total_chunks - 1:
-                # Complete the multipart upload
                 parts = []
                 for i in range(total_chunks):
                     parts.append({

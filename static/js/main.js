@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function uploadFile(file) {
-        const chunkSize = 5 * 1024 * 1024; // 5MB chunks
+        const chunkSize = 100 * 1024 * 1024; // 100MB chunks
         const filename = currentPath + file.name;
 
         const progressBarContainer = createProgressBar(file.name, 'upload');

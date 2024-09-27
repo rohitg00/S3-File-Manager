@@ -8,10 +8,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const createFolderBtn = document.getElementById('create-folder-btn');
     const currentPathDiv = document.getElementById('current-path');
     const toggleFilesBtn = document.getElementById('toggle-files-btn');
+    const showHiddenFilesCheckbox = document.getElementById('show-hidden-files');
 
     let currentPath = '';
     let showFiles = true;
     let hiddenFiles = new Set();
+    let showHiddenFiles = false;
 
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, preventDefaults, false);
@@ -173,7 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
             fileList.appendChild(li);
         }
         files.forEach(file => {
-            if (file.type === 'folder' || (showFiles && !hiddenFiles.has(file.name))) {
+            if (file.type === 'folder' || (showFiles && (showHiddenFiles || !hiddenFiles.has(file.name)))) {
                 const li = document.createElement('li');
                 li.className = 'flex justify-between items-center py-2';
                 if (file.type === 'folder') {
@@ -189,6 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     `;
                 } else {
+                    const isHidden = hiddenFiles.has(file.name);
                     li.innerHTML = `
                         <span>${file.name} (${formatFileSize(file.size)})</span>
                         <div>
@@ -202,7 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 Delete
                             </button>
                             <button onclick="toggleFileVisibility('${file.name}')" class="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-1 px-2 rounded">
-                                Hide
+                                <i class="fas ${isHidden ? 'fa-eye-slash' : 'fa-eye'}"></i>
                             </button>
                         </div>
                     `;
@@ -446,6 +449,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         listFiles(currentPath);
     }
+
+    showHiddenFilesCheckbox.addEventListener('change', () => {
+        showHiddenFiles = showHiddenFilesCheckbox.checked;
+        listFiles(currentPath);
+    });
 
     listFiles();
 });

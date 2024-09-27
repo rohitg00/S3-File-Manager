@@ -8,12 +8,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const createFolderBtn = document.getElementById('create-folder-btn');
     const currentPathDiv = document.getElementById('current-path');
     const toggleFilesBtn = document.getElementById('toggle-files-btn');
-    const hideSmallFilesBtn = document.getElementById('hide-small-files-btn');
 
     let currentPath = '';
     let showFiles = true;
-    let hideSmallFiles = false;
-    const smallFileThreshold = 1024 * 1024; // 1 MB
+    let hiddenFiles = new Set();
 
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, preventDefaults, false);
@@ -144,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function listFiles(prefix = '') {
         showLoading();
-        const url = `/list?prefix=${encodeURIComponent(prefix)}${hideSmallFiles ? '&min_file_size=' + smallFileThreshold : ''}`;
+        const url = `/list?prefix=${encodeURIComponent(prefix)}`;
         fetch(url)
             .then(response => response.json())
             .then(data => {
@@ -175,7 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
             fileList.appendChild(li);
         }
         files.forEach(file => {
-            if (file.type === 'folder' || (showFiles && (!hideSmallFiles || file.size >= smallFileThreshold))) {
+            if (file.type === 'folder' || (showFiles && !hiddenFiles.has(file.name))) {
                 const li = document.createElement('li');
                 li.className = 'flex justify-between items-center py-2';
                 if (file.type === 'folder') {
@@ -200,8 +198,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             <button onclick="downloadFile('${file.name}')" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mr-2">
                                 Download
                             </button>
-                            <button onclick="deleteFile('${file.name}')" class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded">
+                            <button onclick="deleteFile('${file.name}')" class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded mr-2">
                                 Delete
+                            </button>
+                            <button onclick="toggleFileVisibility('${file.name}')" class="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-1 px-2 rounded">
+                                Hide
                             </button>
                         </div>
                     `;
@@ -437,11 +438,14 @@ document.addEventListener('DOMContentLoaded', () => {
         listFiles(currentPath);
     });
 
-    hideSmallFilesBtn.addEventListener('click', () => {
-        hideSmallFiles = !hideSmallFiles;
-        hideSmallFilesBtn.innerHTML = hideSmallFiles ? '<i class="fas fa-filter"></i> Show All Files' : '<i class="fas fa-filter"></i> Hide Small Files';
+    window.toggleFileVisibility = function(filename) {
+        if (hiddenFiles.has(filename)) {
+            hiddenFiles.delete(filename);
+        } else {
+            hiddenFiles.add(filename);
+        }
         listFiles(currentPath);
-    });
+    }
 
     listFiles();
 });

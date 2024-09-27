@@ -53,9 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function uploadFile(file) {
         const chunkSize = 5 * 1024 * 1024; // 5MB chunks
-        const chunks = Math.ceil(file.size / chunkSize);
         const filename = currentPath + file.name;
-        let uploadId;
 
         const progressBarContainer = createProgressBar(file.name, 'upload');
         const cancelButton = createCancelButton(() => {
@@ -65,16 +63,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         progressBarContainer.appendChild(cancelButton);
 
-        for (let chunk = 0; chunk < chunks; chunk++) {
+        if (file.size < chunkSize) {
+            // Single-part upload for small files
             const formData = new FormData();
-            formData.append('chunk', file.slice(chunk * chunkSize, (chunk + 1) * chunkSize));
+            formData.append('chunk', file);
             formData.append('filename', filename);
-            formData.append('chunk_number', chunk);
-            formData.append('total_chunks', chunks);
             formData.append('file_size', file.size);
-            if (uploadId) {
-                formData.append('upload_id', uploadId);
-            }
+            formData.append('chunk_number', 0);
+            formData.append('total_chunks', 1);
 
             try {
                 const response = await fetch('/upload_chunk', {
@@ -87,25 +83,61 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
                 }
 
-                const result = await response.json();
-                if (result.upload_id) {
-                    uploadId = result.upload_id;
-                }
-
-                const percentComplete = ((chunk + 1) / chunks) * 100;
-                updateProgressBar(progressBarContainer, percentComplete);
-
+                progressBarContainer.remove();
+                showMessage('File uploaded successfully', 'success');
+                listFiles(currentPath);
             } catch (error) {
                 showMessage(`Error uploading file: ${error.message}`, 'error');
                 console.error('Upload error:', error);
                 progressBarContainer.remove();
-                return;
             }
-        }
+        } else {
+            // Multipart upload for larger files
+            const chunks = Math.ceil(file.size / chunkSize);
+            let uploadId;
 
-        progressBarContainer.remove();
-        showMessage('File uploaded successfully', 'success');
-        listFiles(currentPath);
+            for (let chunk = 0; chunk < chunks; chunk++) {
+                const formData = new FormData();
+                formData.append('chunk', file.slice(chunk * chunkSize, (chunk + 1) * chunkSize));
+                formData.append('filename', filename);
+                formData.append('chunk_number', chunk);
+                formData.append('total_chunks', chunks);
+                formData.append('file_size', file.size);
+                if (uploadId) {
+                    formData.append('upload_id', uploadId);
+                }
+
+                try {
+                    const response = await fetch('/upload_chunk', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    if (result.upload_id) {
+                        uploadId = result.upload_id;
+                    }
+
+                    const percentComplete = ((chunk + 1) / chunks) * 100;
+                    updateProgressBar(progressBarContainer, percentComplete);
+
+                } catch (error) {
+                    showMessage(`Error uploading file: ${error.message}`, 'error');
+                    console.error('Upload error:', error);
+                    progressBarContainer.remove();
+                    return;
+                }
+            }
+
+            progressBarContainer.remove();
+            showMessage('File uploaded successfully', 'success');
+            listFiles(currentPath);
+        }
     }
 
     function listFiles(prefix = '') {

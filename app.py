@@ -152,15 +152,17 @@ def delete(filename):
 def list_bucket_files():
     try:
         prefix = request.args.get('prefix', '')
-        files, folders = list_files_and_folders(prefix)
+        min_file_size = request.args.get('min_file_size', 0, type=int)
+        files, folders = list_files_and_folders(prefix, min_file_size)
         file_data = []
         for file in files:
-            mime_type, _ = mimetypes.guess_type(file)
+            mime_type, _ = mimetypes.guess_type(file['name'])
             preview_url = None
             if mime_type and (mime_type.startswith('image/') or mime_type == 'application/pdf' or mime_type.startswith('video/')):
-                preview_url = get_file_url(file)
+                preview_url = get_file_url(file['name'])
             file_data.append({
-                'name': file,
+                'name': file['name'],
+                'size': file['size'],
                 'preview_url': preview_url,
                 'mime_type': mime_type,
                 'type': 'file'

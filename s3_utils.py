@@ -47,21 +47,24 @@ def download_file(filename):
         logger.error(f"Error generating download URL: {str(e)}")
         raise Exception(f"Error generating download URL: {str(e)}")
 
-def list_files_and_folders(prefix=''):
+def list_files_and_folders(prefix='', min_file_size=0):
     """List all files and folders in the S3 bucket"""
     try:
         s3_client = get_s3_client()
-        response = s3_client.list_objects_v2(Bucket=S3_BUCKET, Delimiter='/', Prefix=prefix)
+        paginator = s3_client.get_paginator('list_objects_v2')
+        pages = paginator.paginate(Bucket=S3_BUCKET, Delimiter='/', Prefix=prefix)
         
         files = []
         folders = []
 
-        for content in response.get('Contents', []):
-            if content['Key'] != prefix:
-                files.append(content['Key'])
-
-        for common_prefix in response.get('CommonPrefixes', []):
-            folders.append(common_prefix['Prefix'])
+        for page in pages:
+            for content in page.get('Contents', []):
+                if content['Key'] != prefix:
+                    if content['Size'] >= min_file_size:
+                        files.append({'name': content['Key'], 'size': content['Size']})
+            
+            for common_prefix in page.get('CommonPrefixes', []):
+                folders.append(common_prefix['Prefix'])
 
         logger.info(f"Successfully listed files and folders from the S3 bucket with prefix: {prefix}")
         return files, folders
